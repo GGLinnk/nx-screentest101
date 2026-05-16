@@ -6,13 +6,16 @@
 namespace {
 
 enum Pattern {
-    P_SOLID = 0, P_GRADIENT, P_GEOMETRY, P_COLORBARS,
-    P_CHECKER, P_CONTRAST, P_STROBE, P_COUNT
+    P_SOLID = 0, P_GRADIENT, P_GEOMETRY, P_COLORBARS, P_SUBPIXEL,
+    P_CHECKER, P_CONTRAST, P_CLIPPING, P_BURNIN, P_STROBE, P_MOTION,
+    P_COUNT
 };
 
 const char* kPatternName[P_COUNT] = {
     "Solid Colour", "Gradients", "Geometry Grid", "Colour Bars",
-    "Pixel Checkerboard", "Contrast Steps", "Strobe / Flicker",
+    "RGB Sub-pixels", "Pixel Checkerboard", "Contrast Steps",
+    "Black/White Clipping", "Retention Split", "Strobe / Flicker",
+    "Motion / Pursuit",
 };
 
 struct NamedColor { const char* n; u8 r, g, b; };
@@ -32,6 +35,11 @@ void DisplayMode::onEnter() {
     solidIdx_ = 0;
     strobeAcc_ = 0.0;
     strobeWhite_ = false;
+    autoCycle_ = false;
+    autoAcc_ = 0.0;
+    motionX_ = 0.0;
+    burninAcc_ = 0.0;
+    burninSwap_ = false;
 }
 
 void DisplayMode::update(const Input& in) {
@@ -44,10 +52,19 @@ void DisplayMode::update(const Input& in) {
         hud_ = !hud_;
 
     if (pattern_ == P_SOLID) {
+        if (in.down & HidNpadButton_X)
+            autoCycle_ = !autoCycle_;
         if (in.down & (HidNpadButton_AnyDown | HidNpadButton_A))
             solidIdx_ = (solidIdx_ + 1) % kSolidCount;
         if (in.down & HidNpadButton_AnyUp)
             solidIdx_ = (solidIdx_ + kSolidCount - 1) % kSolidCount;
+        if (autoCycle_) {
+            autoAcc_ += in.dtSec;
+            if (autoAcc_ >= 2.0) {
+                autoAcc_ -= 2.0;
+                solidIdx_ = (solidIdx_ + 1) % kSolidCount;
+            }
+        }
     } else if (pattern_ == P_STROBE) {
         if (in.down & HidNpadButton_AnyUp)   strobeHz_ = strobeHz_ < 30 ? strobeHz_ + 1 : 30;
         if (in.down & HidNpadButton_AnyDown) strobeHz_ = strobeHz_ >  1 ? strobeHz_ - 1 :  1;
@@ -58,14 +75,30 @@ void DisplayMode::update(const Input& in) {
             strobeAcc_ -= halfPeriod;
             strobeWhite_ = !strobeWhite_;
         }
+    } else if (pattern_ == P_MOTION) {
+        if (in.down & HidNpadButton_AnyUp)
+            motionSpeed_ = motionSpeed_ < 2000 ? motionSpeed_ + 100 : 2000;
+        if (in.down & HidNpadButton_AnyDown)
+            motionSpeed_ = motionSpeed_ > 100 ? motionSpeed_ - 100 : 100;
+
+        motionX_ += (double)motionSpeed_ * in.dtSec;
+        while (motionX_ >= Gfx::W) motionX_ -= Gfx::W + 140;
+    } else if (pattern_ == P_BURNIN) {
+        burninAcc_ += in.dtSec;
+        if (burninAcc_ >= 2.0) {
+            burninAcc_ -= 2.0;
+            burninSwap_ = !burninSwap_;
+        }
     }
 }
 
 const char* DisplayMode::controls() const {
     if (pattern_ == P_SOLID)
-        return "<-/-> Pattern   Up/Down/A Colour   Y HUD   B Menu";
+        return "<-/-> Pattern   Up/Down/A Colour   X Auto   Y HUD   B Menu";
     if (pattern_ == P_STROBE)
         return "<-/-> Pattern   Up/Down Rate   Y HUD   B Menu";
+    if (pattern_ == P_MOTION)
+        return "<-/-> Pattern   Up/Down Speed   Y HUD   B Menu";
     return "<-/-> Pattern   Y HUD   B Menu";
 }
 
@@ -113,6 +146,16 @@ void DisplayMode::render(Gfx& g) {
             g.fillRect(i * bw, 0, (i == 7 ? Gfx::W - 7 * bw : bw), Gfx::H, bars[i]);
         break;
     }
+    case P_SUBPIXEL: {
+        // 1px-wide pure R/G/B columns: reveals partial sub-pixel defects.
+        for (int x = 0; x < Gfx::W; x++) {
+            int p = x % 3;
+            g.vLine(x, 0, Gfx::H, p == 0 ? Gfx::rgb(255, 0, 0)
+                                : p == 1 ? Gfx::rgb(0, 255, 0)
+                                         : Gfx::rgb(0, 0, 255));
+        }
+        break;
+    }
     case P_CHECKER: {
         // 1px alternating black/white grid (pixel response / panel inversion).
         for (int y = 0; y < Gfx::H; y++)
@@ -130,9 +173,44 @@ void DisplayMode::render(Gfx& g) {
         }
         break;
     }
+    case P_CLIPPING: {
+        // Near-black patches on black, near-white patches on white: shows
+        // shadow crush and highlight clipping at the ends of the range.
+        const int lo[8] = {  1,   2,   3,   4,   6,   8,  12,  16 };
+        const int hi[8] = { 254, 253, 252, 251, 249, 247, 243, 239 };
+        int half = Gfx::H / 2;
+        g.fillRect(0, 0,    Gfx::W, half,          Gfx::rgb(0, 0, 0));
+        g.fillRect(0, half, Gfx::W, Gfx::H - half, Gfx::rgb(255, 255, 255));
+        int pw = Gfx::W / 8;
+        for (int i = 0; i < 8; i++) {
+            u8 lv = (u8)lo[i], hv = (u8)hi[i];
+            g.fillRect(i * pw + pw / 4, half / 4,        pw / 2, half / 2, Gfx::rgb(lv, lv, lv));
+            g.fillRect(i * pw + pw / 4, half + half / 4, pw / 2, half / 2, Gfx::rgb(hv, hv, hv));
+        }
+        break;
+    }
     case P_STROBE:
         g.clear(strobeWhite_ ? Gfx::rgb(255,255,255) : Gfx::rgb(0,0,0));
         break;
+    case P_BURNIN: {
+        // Black/white split that swaps sides every 2s; image retention shows
+        // as a faint ghost of the previous half along the seam.
+        int half = Gfx::W / 2;
+        u32 left  = burninSwap_ ? Gfx::rgb(0,0,0) : Gfx::rgb(255,255,255);
+        u32 right = burninSwap_ ? Gfx::rgb(255,255,255) : Gfx::rgb(0,0,0);
+        g.fillRect(0, 0, half, Gfx::H, left);
+        g.fillRect(half, 0, Gfx::W - half, Gfx::H, right);
+        break;
+    }
+    case P_MOTION: {
+        // Pixel-pursuit: eye-track the box - a trailing blur reveals slow
+        // pixel response / ghosting.
+        g.clear(Gfx::rgb(128, 128, 128));
+        int bx = (int)motionX_;
+        g.fillRect(bx, Gfx::H / 2 - 190, 120, 120, Gfx::rgb(255, 255, 255));
+        g.fillRect(bx, Gfx::H / 2 +  70, 120, 120, Gfx::rgb(0, 0, 0));
+        break;
+    }
     }
 
     if (!hud_) return;
@@ -143,11 +221,15 @@ void DisplayMode::render(Gfx& g) {
     g.drawTextBg(14, 44, 2, Gfx::rgb(255,255,255), Gfx::rgb(0,0,0), line);
 
     if (pattern_ == P_SOLID) {
-        snprintf(line, sizeof(line), "Colour: %s  (%d/%d)",
-                 kSolids[solidIdx_].n, solidIdx_ + 1, kSolidCount);
+        snprintf(line, sizeof(line), "Colour: %s  (%d/%d)%s",
+                 kSolids[solidIdx_].n, solidIdx_ + 1, kSolidCount,
+                 autoCycle_ ? "  [AUTO]" : "");
         g.drawTextBg(14, 76, 2, Gfx::rgb(255,255,255), Gfx::rgb(0,0,0), line);
     } else if (pattern_ == P_STROBE) {
         snprintf(line, sizeof(line), "Rate: %d Hz", strobeHz_);
+        g.drawTextBg(14, 76, 2, Gfx::rgb(255,255,255), Gfx::rgb(0,0,0), line);
+    } else if (pattern_ == P_MOTION) {
+        snprintf(line, sizeof(line), "Speed: %d px/s", motionSpeed_);
         g.drawTextBg(14, 76, 2, Gfx::rgb(255,255,255), Gfx::rgb(0,0,0), line);
     }
 }

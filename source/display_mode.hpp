@@ -19,4 +19,11 @@ private:
     int    strobeHz_  = 4;     // 1..30 Hz, adjustable with D-pad Up/Down
     bool   strobeWhite_ = false;
     double strobeAcc_ = 0.0;
+
+    bool   autoCycle_ = false;   // X: auto-advance the solid colour
+    double autoAcc_   = 0.0;
+    int    motionSpeed_ = 600;   // pixel-pursuit box speed (px/s)
+    double motionX_   = 0.0;
+    double burninAcc_ = 0.0;     // retention split-swap timer
+    bool   burninSwap_ = false;
 };
