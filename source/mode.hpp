@@ -10,6 +10,7 @@ enum class ModeId {
     Touch,
     Gesture,
     Controls,
+    HwInfo,
     COUNT
 };
 

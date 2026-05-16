@@ -11,11 +11,12 @@ const Item kItems[] = {
     {"Touchscreen Test", "Multitouch, report rate, dead-zone canvas",    ModeId::Touch},
     {"Gesture Test",     "Tap, swipe, pinch and rotate recognition",     ModeId::Gesture},
     {"Controls Test",    "Buttons, stick drift, motion sensor, rumble",  ModeId::Controls},
+    {"System Info",      "Firmware, battery, temperature, mode",         ModeId::HwInfo},
 };
 constexpr int kCount = (int)std::size(kItems);
 
 // Cards span a wide centred column so descriptions and the footer hint fit.
-constexpr int IT_X = 160, IT_W = 960, IT_H = 84, IT_GAP = 20, IT_Y0 = 252;
+constexpr int IT_X = 160, IT_W = 960, IT_H = 80, IT_GAP = 12, IT_Y0 = 212;
 
 void itemRect(int i, int& x, int& y, int& w, int& h) {
     x = IT_X; w = IT_W; h = IT_H;

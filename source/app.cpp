@@ -4,6 +4,7 @@
 #include "touch_mode.hpp"
 #include "gesture_mode.hpp"
 #include "controls_mode.hpp"
+#include "hwinfo_mode.hpp"
 #include <cstdio>
 
 // Concrete mode instances live for the whole program.
@@ -12,6 +13,7 @@ static DisplayMode  s_display;
 static TouchMode    s_touch;
 static GestureMode  s_gesture;
 static ControlsMode s_controls;
+static HwInfoMode   s_hwinfo;
 
 bool App::init(ModeId start) {
     if (!gfx_.init())
@@ -30,6 +32,7 @@ bool App::init(ModeId start) {
     modes_[(int)ModeId::Touch]    = &s_touch;
     modes_[(int)ModeId::Gesture]  = &s_gesture;
     modes_[(int)ModeId::Controls] = &s_controls;
+    modes_[(int)ModeId::HwInfo]   = &s_hwinfo;
 
     current_ = (start >= ModeId::Menu && start < ModeId::COUNT) ? start : ModeId::Menu;
     modes_[(int)current_]->onEnter();
