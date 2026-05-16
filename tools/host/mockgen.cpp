@@ -254,24 +254,52 @@ static void videoTouch() {
     }
 }
 
+// Emulate each gesture as the moving multi-point sequence the HID engine
+// would actually report: a swipe travels, a pinch spreads, a rotate orbits.
 static void videoGesture() {
     GestureMode m; m.onEnter();
-    const u32 types[] = { HidGestureType_Tap, HidGestureType_Swipe,
-                          HidGestureType_Pinch, HidGestureType_Rotate };
-    const u32 dirs[]  = { 0, 3, 0, 0 };
+    const int seg = 64, activeFor = 46;
+    const int cx = 720, cy = 380;
     for (int s = 0; s < 4; s++) {
-        for (int f = 0; f < 52; f++) {
+        for (int f = 0; f < seg; f++) {
+            bool  active = f < activeFor;
+            float t = (float)f / (float)activeFor;          // 0..1 progress
             HidGestureState g{};
-            bool active = f < 34;
             g.context_number = s + 1;
-            g.type      = active ? types[s] : (u32)HidGestureType_Idle;
-            g.direction = dirs[s];
-            g.x = 720; g.y = 360;
-            g.delta_x = 44; g.velocity_x = 780.0f;
-            g.scale          = types[s] == HidGestureType_Pinch
-                                   ? 1.0f + 0.5f * sinf(f * 0.2f) : 1.0f;
-            g.rotation_angle = types[s] == HidGestureType_Rotate ? f * 4.0f : 0.0f;
-            g.point_count = 1; g.points[0].x = 720; g.points[0].y = 360;
+
+            if (s == 0) {                                   // Tap
+                g.type = active ? HidGestureType_Tap : HidGestureType_Idle;
+                g.x = cx; g.y = cy;
+                g.point_count = 1;
+                g.points[0].x = cx; g.points[0].y = cy;
+            } else if (s == 1) {                            // Swipe (rightwards)
+                int x = cx - 200 + (int)(400 * t);
+                g.type = active ? HidGestureType_Swipe : HidGestureType_Idle;
+                g.direction = 3;                            // Right
+                g.x = (u32)x; g.y = cy;
+                g.delta_x = 28; g.velocity_x = 940.0f;
+                g.point_count = 1;
+                g.points[0].x = (u32)x; g.points[0].y = cy;
+            } else if (s == 2) {                            // Pinch (points spread)
+                int spread = 36 + (int)(170 * t);
+                g.type = active ? HidGestureType_Pinch : HidGestureType_Idle;
+                g.x = cx; g.y = cy;
+                g.scale = 1.0f + 1.6f * t;
+                g.point_count = 2;
+                g.points[0].x = (u32)(cx - spread); g.points[0].y = cy;
+                g.points[1].x = (u32)(cx + spread); g.points[1].y = cy;
+            } else {                                        // Rotate (points orbit)
+                float a = t * 2.1f;
+                const int r = 130;
+                g.type = active ? HidGestureType_Rotate : HidGestureType_Idle;
+                g.x = cx; g.y = cy;
+                g.rotation_angle = a * 57.2958f;
+                g.point_count = 2;
+                g.points[0].x = (u32)(cx + r * cosf(a));
+                g.points[0].y = (u32)(cy + r * sinf(a));
+                g.points[1].x = (u32)(cx - r * cosf(a));
+                g.points[1].y = (u32)(cy - r * sinf(a));
+            }
             mockSetGesture(&g);
             Input in{}; in.dtSec = kDt; m.update(in);
             videoFrame(&m);
