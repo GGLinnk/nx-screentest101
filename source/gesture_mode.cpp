@@ -1,6 +1,7 @@
 #include "gesture_mode.hpp"
 #include "gfx.hpp"
 #include <cstdio>
+#include <iterator>
 
 namespace {
 
@@ -14,10 +15,10 @@ const char* kDirName[] = { "None", "Left", "Up", "Right", "Down" };
 constexpr double HOLD_SEC = 1.5;
 
 const char* typeName(u32 t) {
-    return t < (sizeof(kTypeName) / sizeof(kTypeName[0])) ? kTypeName[t] : "?";
+    return t < std::size(kTypeName) ? kTypeName[t] : "?";
 }
 const char* dirName(u32 d) {
-    return d < (sizeof(kDirName) / sizeof(kDirName[0])) ? kDirName[d] : "?";
+    return d < std::size(kDirName) ? kDirName[d] : "?";
 }
 
 bool meaningful(u32 t) {

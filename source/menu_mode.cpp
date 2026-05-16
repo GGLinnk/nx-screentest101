@@ -1,5 +1,6 @@
 #include "menu_mode.hpp"
 #include "gfx.hpp"
+#include <iterator>
 
 namespace {
 
@@ -10,7 +11,7 @@ const Item kItems[] = {
     {"Touchscreen Test", "Multitouch, report rate, dead-zone canvas",    ModeId::Touch},
     {"Gesture Test",     "Tap, swipe, pinch and rotate recognition",     ModeId::Gesture},
 };
-constexpr int kCount = (int)(sizeof(kItems) / sizeof(kItems[0]));
+constexpr int kCount = (int)std::size(kItems);
 
 // Cards span a wide centred column so descriptions and the footer hint fit.
 constexpr int IT_X = 160, IT_W = 960, IT_H = 84, IT_GAP = 20, IT_Y0 = 252;

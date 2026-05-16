@@ -1,6 +1,7 @@
 #include "display_mode.hpp"
 #include "gfx.hpp"
 #include <cstdio>
+#include <iterator>
 
 namespace {
 
@@ -22,7 +23,7 @@ const NamedColor kSolids[] = {
     {"CYAN",       0, 255, 255}, {"MAGENTA",  255,   0, 255},
     {"YELLOW",   255, 255,   0},
 };
-constexpr int kSolidCount = (int)(sizeof(kSolids) / sizeof(kSolids[0]));
+constexpr int kSolidCount = (int)std::size(kSolids);
 
 } // namespace
 
@@ -61,14 +62,11 @@ void DisplayMode::update(const Input& in) {
 }
 
 const char* DisplayMode::controls() const {
-    static char buf[96];
     if (pattern_ == P_SOLID)
-        snprintf(buf, sizeof(buf), "<-/-> Pattern   Up/Down/A Colour   Y HUD   B Menu");
-    else if (pattern_ == P_STROBE)
-        snprintf(buf, sizeof(buf), "<-/-> Pattern   Up/Down Rate   Y HUD   B Menu");
-    else
-        snprintf(buf, sizeof(buf), "<-/-> Pattern   Y HUD   B Menu");
-    return buf;
+        return "<-/-> Pattern   Up/Down/A Colour   Y HUD   B Menu";
+    if (pattern_ == P_STROBE)
+        return "<-/-> Pattern   Up/Down Rate   Y HUD   B Menu";
+    return "<-/-> Pattern   Y HUD   B Menu";
 }
 
 void DisplayMode::render(Gfx& g) {
@@ -104,14 +102,15 @@ void DisplayMode::render(Gfx& g) {
         break;
     }
     case P_COLORBARS: {
-        const NamedColor bars[8] = {
-            {"",255,255,255},{"",255,255,0},{"",0,255,255},{"",0,255,0},
-            {"",255,0,255},{"",255,0,0},{"",0,0,255},{"",0,0,0},
+        const u32 bars[8] = {
+            Gfx::rgb(255,255,255), Gfx::rgb(255,255,0),
+            Gfx::rgb(0,255,255),   Gfx::rgb(0,255,0),
+            Gfx::rgb(255,0,255),   Gfx::rgb(255,0,0),
+            Gfx::rgb(0,0,255),     Gfx::rgb(0,0,0),
         };
         int bw = Gfx::W / 8;
         for (int i = 0; i < 8; i++)
-            g.fillRect(i * bw, 0, (i == 7 ? Gfx::W - 7 * bw : bw), Gfx::H,
-                       Gfx::rgb(bars[i].r, bars[i].g, bars[i].b));
+            g.fillRect(i * bw, 0, (i == 7 ? Gfx::W - 7 * bw : bw), Gfx::H, bars[i]);
         break;
     }
     case P_CHECKER: {

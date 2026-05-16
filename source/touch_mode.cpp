@@ -56,11 +56,16 @@ void canvasDisc(int cx, int cy, int r, u32 color) {
     }
 }
 
+// Reset the whole paint canvas to the background colour.
+void clearCanvas() {
+    for (int i = 0; i < Gfx::W * Gfx::H; i++) s_canvas[i] = kCanvasBg;
+}
+
 } // namespace
 
 void TouchMode::onEnter() {
     canvasView_ = false;
-    for (int i = 0; i < Gfx::W * Gfx::H; i++) s_canvas[i] = kCanvasBg;
+    clearCanvas();
     resetStats();
 }
 
@@ -84,9 +89,7 @@ void TouchMode::update(const Input& in) {
 
     if (in.down & HidNpadButton_Y) canvasView_ = !canvasView_;
     if (in.down & HidNpadButton_X) resetStats();
-    if (in.down & HidNpadButton_A) {
-        for (int i = 0; i < Gfx::W * Gfx::H; i++) s_canvas[i] = kCanvasBg;
-    }
+    if (in.down & HidNpadButton_A) clearCanvas();
 
     // Advance the rainbow brush so the paint trail varies in colour, making
     // overlapping passes and coverage gaps easier to distinguish.

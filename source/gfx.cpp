@@ -35,11 +35,7 @@ void Gfx::putPixel(int x, int y, u32 color) {
 }
 
 void Gfx::clear(u32 color) {
-    if (!buf_) return;
-    for (int y = 0; y < H; y++) {
-        u32* row = buf_ + y * stride_;
-        for (int x = 0; x < W; x++) row[x] = color;
-    }
+    fillRect(0, 0, W, H, color);
 }
 
 void Gfx::fillRect(int x, int y, int w, int h, u32 color) {
@@ -126,20 +122,20 @@ void Gfx::blitFull(const u32* src) {
 int Gfx::drawChar(int x, int y, int scale, u32 fg, char c) {
     if (scale < 1) scale = 1;
     const u8* g = font::glyph(c);
-    for (int row = 0; row < 8; row++) {
+    for (int row = 0; row < font::GLYPH_H; row++) {
         u8 bits = g[row];
-        for (int col = 0; col < 8; col++) {
+        for (int col = 0; col < font::GLYPH_W; col++) {
             if (bits & (1 << col))
                 fillRect(x + col * scale, y + row * scale, scale, scale, fg);
         }
     }
-    return 8 * scale;
+    return font::GLYPH_W * scale;
 }
 
 int Gfx::drawText(int x, int y, int scale, u32 fg, const char* s) {
     int cx = x;
     for (; *s; ++s) {
-        if (*s == '\n') { cx = x; y += 8 * scale + 2 * scale; continue; }
+        if (*s == '\n') { cx = x; y += font::GLYPH_H * scale + 2 * scale; continue; }
         cx += drawChar(cx, y, scale, fg, *s);
     }
     return cx - x;
@@ -149,7 +145,7 @@ int Gfx::textWidth(int scale, const char* s) const {
     int w = 0, line = 0;
     for (; *s; ++s) {
         if (*s == '\n') { if (line > w) w = line; line = 0; }
-        else line += 8 * scale;
+        else line += font::GLYPH_W * scale;
     }
     return line > w ? line : w;
 }
@@ -157,7 +153,7 @@ int Gfx::textWidth(int scale, const char* s) const {
 void Gfx::drawTextBg(int x, int y, int scale, u32 fg, u32 bg, const char* s) {
     int pad = 2 * scale;
     int tw = textWidth(scale, s);
-    int th = 8 * scale;
+    int th = font::GLYPH_H * scale;
     fillRect(x - pad, y - pad, tw + pad * 2, th + pad * 2, bg);
     drawText(x, y, scale, fg, s);
 }
