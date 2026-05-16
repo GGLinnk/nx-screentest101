@@ -36,6 +36,7 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: nxscreentest-nro
+          path: dist
 
       - name: Create release
         env:

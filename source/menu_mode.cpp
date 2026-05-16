@@ -2,6 +2,12 @@
 #include "nxdisplaylib/gfx.hpp"
 #include <iterator>
 
+// Provided by the build (-DAPP_VERSION, from the Makefile's APP_VERSION);
+// fall back so the file still compiles outside the project build.
+#ifndef APP_VERSION
+#define APP_VERSION "dev"
+#endif
+
 namespace {
 
 struct Item { const char* label; const char* desc; ModeId target; };
@@ -80,6 +86,10 @@ void MenuMode::render(Gfx& g) {
     const char* sub   = "Nintendo Switch display & touchscreen diagnostics";
     g.drawText((Gfx::W - g.textWidth(6, title)) / 2, 96,  6, accent, title);
     g.drawText((Gfx::W - g.textWidth(2, sub))   / 2, 168, 2, dim,    sub);
+
+    // Build version, tucked in the top-left corner.
+    const char* ver = "v" APP_VERSION;
+    g.drawText(24, 24, 2, dim, ver);
 
     // Test entries.
     for (int i = 0; i < kCount; i++) {

@@ -15,7 +15,11 @@ CXX      ?= g++
 APP      := ../../source
 LIB      := ../../libs/nxdisplaylib
 
+# Single source of truth: read the version straight from the device Makefile.
+APP_VERSION := $(shell sed -n 's/^APP_VERSION[[:space:]]*:=[[:space:]]*//p' ../../Makefile)
+
 CXXFLAGS := -std=gnu++17 -O2 -Wall -pthread -DNXD_HOST \
+            -DAPP_VERSION=\"$(APP_VERSION)\" \
             -I. -I$(LIB)/host -I$(LIB)/include -I$(APP) \
             $(shell pkg-config --cflags sdl2)
 LDLIBS   := $(shell pkg-config --libs sdl2) -pthread

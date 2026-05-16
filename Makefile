@@ -28,7 +28,7 @@ INCLUDES	:=	source libs/nxdisplaylib/include
 
 APP_TITLE	:=	NX Screen Test
 APP_AUTHOR	:=	GGLinnk
-APP_VERSION	:=	1.4.0
+APP_VERSION	:=	1.4.1
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -39,6 +39,9 @@ CFLAGS	:=	-g -Wall -O2 -ffunction-sections \
 			$(ARCH) $(DEFINES)
 
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__
+
+# Surface the homebrew version (the NACP APP_VERSION) to the code as a string.
+CFLAGS	+=	-DAPP_VERSION=\"$(APP_VERSION)\"
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++17
 
