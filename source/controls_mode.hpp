@@ -24,7 +24,7 @@ private:
     HidAnalogStickState lstick_{}, rstick_{};
 
     // System buttons that are not part of the npad button mask.
-    bool   captureHeld_ = false;
+    double captureFlash_ = 0.0;
     s32    volume_ = 0, volMin_ = 0, volMax_ = 0;
     s32    prevVolume_ = 0;
     bool   haveVolume_ = false, havePrevVol_ = false;
@@ -34,11 +34,11 @@ private:
     s32 lMinX_ = 0, lMaxX_ = 0, lMinY_ = 0, lMaxY_ = 0;
     s32 rMinX_ = 0, rMaxX_ = 0, rMinY_ = 0, rMaxY_ = 0;
 
-    // Motion sensor, read from whichever controller style is connected.
+    // Motion sensor. Handles are acquired for every controller style and
+    // update() reads whichever sensor currently reports as connected.
     HidSixAxisSensorState  six_{};
-    HidSixAxisSensorHandle sixHandheld_{};
-    HidSixAxisSensorHandle sixFullKey_{};
-    HidSixAxisSensorHandle sixJoyDual_[2]{};
+    HidSixAxisSensorHandle sixHandles_[6]{};
+    int                    sixCount_ = 0;
 
     // HD-rumble device handles, one set per supported controller style.
     HidVibrationDeviceHandle vibHandheld_[2]{};

@@ -12,5 +12,6 @@ public:
     bool showChrome() const override { return false; }
 
 private:
-    int sel_ = 0;
+    int  sel_ = 0;
+    bool wasTouching_ = false;   // previous frame had a contact (tap detection)
 };

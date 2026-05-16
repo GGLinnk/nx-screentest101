@@ -28,7 +28,7 @@ bool inRect(int px, int py, int x, int y, int w, int h) {
 
 } // namespace
 
-void MenuMode::onEnter() { sel_ = 0; }
+void MenuMode::onEnter() { sel_ = 0; wasTouching_ = false; }
 
 void MenuMode::update(const Input& in) {
     if (in.down & HidNpadButton_AnyDown)
@@ -43,7 +43,10 @@ void MenuMode::update(const Input& in) {
     if (in.down & HidNpadButton_Minus)
         requestSwitch(ModeId::HwInfo);
 
-    // Touch: hovering highlights, a new contact (Start) on an item selects it.
+    // Touch: hovering highlights a card; a fresh contact on one opens it.
+    // New-contact is detected from the touch-count transition rather than the
+    // HidTouchAttribute_Start flag, whose one-sample window is easily missed.
+    bool newContact = in.touch.count > 0 && !wasTouching_;
     for (int i = 0; i < in.touch.count; i++) {
         int x, y, w, h;
         const HidTouchState& t = in.touch.touches[i];
@@ -51,11 +54,12 @@ void MenuMode::update(const Input& in) {
             itemRect(k, x, y, w, h);
             if (inRect((int)t.x, (int)t.y, x, y, w, h)) {
                 sel_ = k;
-                if (t.attributes & HidTouchAttribute_Start)
+                if (newContact)
                     requestSwitch(kItems[k].target);
             }
         }
     }
+    wasTouching_ = in.touch.count > 0;
 }
 
 void MenuMode::render(Gfx& g) {

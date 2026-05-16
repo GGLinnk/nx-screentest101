@@ -65,21 +65,27 @@ void ControlsMode::onEnter() {
     lMinX_ = lMaxX_ = lMinY_ = lMaxY_ = 0;
     rMinX_ = rMaxX_ = rMinY_ = rMaxY_ = 0;
     six_ = HidSixAxisSensorState{};
-    captureHeld_ = false;
+    captureFlash_ = 0.0;
     haveVolume_ = havePrevVol_ = false;
     volume_ = volMin_ = volMax_ = prevVolume_ = 0;
     volUpFlash_ = volDownFlash_ = 0.0;
 
-    hidGetSixAxisSensorHandles(&sixHandheld_, 1, HidNpadIdType_Handheld,
-                               HidNpadStyleTag_NpadHandheld);
-    hidGetSixAxisSensorHandles(&sixFullKey_, 1, HidNpadIdType_No1,
-                               HidNpadStyleTag_NpadFullKey);
-    hidGetSixAxisSensorHandles(sixJoyDual_, 2, HidNpadIdType_No1,
-                               HidNpadStyleTag_NpadJoyDual);
-    hidStartSixAxisSensor(sixHandheld_);
-    hidStartSixAxisSensor(sixFullKey_);
-    hidStartSixAxisSensor(sixJoyDual_[0]);
-    hidStartSixAxisSensor(sixJoyDual_[1]);
+    // Six-axis handles for every controller style; update() then reads
+    // whichever sensor reports a connected state.
+    int n = 0;
+    hidGetSixAxisSensorHandles(&sixHandles_[n], 1, HidNpadIdType_Handheld,
+                               HidNpadStyleTag_NpadHandheld);  n += 1;
+    hidGetSixAxisSensorHandles(&sixHandles_[n], 1, HidNpadIdType_No1,
+                               HidNpadStyleTag_NpadFullKey);   n += 1;
+    hidGetSixAxisSensorHandles(&sixHandles_[n], 2, HidNpadIdType_No1,
+                               HidNpadStyleTag_NpadJoyDual);   n += 2;
+    hidGetSixAxisSensorHandles(&sixHandles_[n], 1, HidNpadIdType_No1,
+                               HidNpadStyleTag_NpadJoyLeft);   n += 1;
+    hidGetSixAxisSensorHandles(&sixHandles_[n], 1, HidNpadIdType_No1,
+                               HidNpadStyleTag_NpadJoyRight);  n += 1;
+    sixCount_ = n;
+    for (int i = 0; i < sixCount_; i++)
+        hidStartSixAxisSensor(sixHandles_[i]);
 
     hidInitializeVibrationDevices(vibHandheld_, 2, HidNpadIdType_Handheld,
                                   HidNpadStyleTag_NpadHandheld);
@@ -101,10 +107,8 @@ void ControlsMode::onExit() {
     hidSendVibrationValues(vibFullKey_, off, 2);
     hidSendVibrationValues(vibJoyDual_, off, 2);
 
-    hidStopSixAxisSensor(sixHandheld_);
-    hidStopSixAxisSensor(sixFullKey_);
-    hidStopSixAxisSensor(sixJoyDual_[0]);
-    hidStopSixAxisSensor(sixJoyDual_[1]);
+    for (int i = 0; i < sixCount_; i++)
+        hidStopSixAxisSensor(sixHandles_[i]);
 
     audctlExit();
     hidsysExit();
@@ -121,9 +125,11 @@ void ControlsMode::update(const Input& in) {
         requestSwitch(ModeId::Menu);
 
     // Capture button: its own HID shared-memory state, not an npad button.
+    // The press is brief, so latch it into a short visible flash.
     HidCaptureButtonState cap{};
-    if (hidGetCaptureButtonStates(&cap, 1) > 0)
-        captureHeld_ = cap.buttons != 0;
+    if (hidGetCaptureButtonStates(&cap, 1) > 0 && cap.buttons != 0)
+        captureFlash_ = 0.4;
+    if (captureFlash_ > 0.0) captureFlash_ -= in.dtSec;
 
     // Volume buttons are not in the npad mask either; detect them as changes
     // in the active output target's volume level.
@@ -151,18 +157,24 @@ void ControlsMode::update(const Input& in) {
     if (rstick_.y < rMinY_) rMinY_ = rstick_.y;
     if (rstick_.y > rMaxY_) rMaxY_ = rstick_.y;
 
-    // Select the sensor / rumble device set for the connected controller.
-    HidSixAxisSensorHandle  motion = sixHandheld_;
-    HidVibrationDeviceHandle* vib  = vibHandheld_;
-    if (!(hidGetNpadStyleSet(HidNpadIdType_Handheld) & HidNpadStyleTag_NpadHandheld)) {
-        u32 s1 = hidGetNpadStyleSet(HidNpadIdType_No1);
-        if (s1 & HidNpadStyleTag_NpadFullKey)      { motion = sixFullKey_;    vib = vibFullKey_; }
-        else if (s1 & HidNpadStyleTag_NpadJoyDual) { motion = sixJoyDual_[0]; vib = vibJoyDual_; }
+    // Motion: use the first six-axis sensor reporting a connected state, so
+    // it works in handheld, Pro-controller, dual and single Joy-Con setups.
+    for (int i = 0; i < sixCount_; i++) {
+        HidSixAxisSensorState st{};
+        if (hidGetSixAxisSensorStates(sixHandles_[i], &st, 1) > 0 &&
+            (st.attributes & HidSixAxisSensorAttribute_IsConnected)) {
+            six_ = st;
+            break;
+        }
     }
 
-    HidSixAxisSensorState st{};
-    if (hidGetSixAxisSensorStates(motion, &st, 1) > 0)
-        six_ = st;
+    // Rumble target for the connected controller style.
+    HidVibrationDeviceHandle* vib = vibHandheld_;
+    if (!(hidGetNpadStyleSet(HidNpadIdType_Handheld) & HidNpadStyleTag_NpadHandheld)) {
+        u32 s1 = hidGetNpadStyleSet(HidNpadIdType_No1);
+        if (s1 & HidNpadStyleTag_NpadFullKey)      vib = vibFullKey_;
+        else if (s1 & HidNpadStyleTag_NpadJoyDual) vib = vibJoyDual_;
+    }
 
     // HD rumble: ZL drives the left actuator, ZR the right.
     HidVibrationValue vals[2];
@@ -199,7 +211,7 @@ void ControlsMode::render(Gfx& g) {
 
     // System buttons that are not part of the npad mask.
     int sy = BY + 4 * (BH + GAP);
-    drawPill(g, BX,                  sy, BW, BH, "Capture", captureHeld_);
+    drawPill(g, BX,                  sy, BW, BH, "Capture", captureFlash_ > 0.0);
     drawPill(g, BX + (BW + GAP),     sy, BW, BH, "Vol -",   volDownFlash_ > 0.0);
     drawPill(g, BX + 2 * (BW + GAP), sy, BW, BH, "Vol +",   volUpFlash_   > 0.0);
     if (haveVolume_) {
