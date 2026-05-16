@@ -16,7 +16,9 @@ include $(DEVKITPRO)/libnx/switch_rules
 # DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
 #---------------------------------------------------------------------------------
-TARGET		:=	$(notdir $(CURDIR))
+# Pinned, not derived from the directory name, so the output is screentest101.nro
+# regardless of what the checkout / clone directory is called.
+TARGET		:=	screentest101
 BUILD		:=	build
 SOURCES		:=	source
 DATA		:=	data

@@ -20,3 +20,4 @@ jobs:
         with:
           name: screentest101-nro
           path: screentest101.nro
+          if-no-files-found: error
