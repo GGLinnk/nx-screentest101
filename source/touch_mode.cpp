@@ -64,8 +64,9 @@ void clearCanvas() {
 } // namespace
 
 void TouchMode::onEnter() {
-    canvasView_ = false;
+    view_ = VIEW_LIVE;
     clearCanvas();
+    clearGrid();
     resetStats();
 }
 
@@ -77,6 +78,12 @@ void TouchMode::resetStats() {
     rateSamples_  = 0;
     curHz_ = minHz_ = maxHz_ = 0.0;
     lastDeltaTime_ = 0;
+    jitN_ = jitSumX_ = jitSumY_ = jitSumXX_ = jitSumYY_ = 0.0;
+    jitterPx_ = 0.0;
+}
+
+void TouchMode::clearGrid() {
+    for (bool& cell : gridHit_) cell = false;
 }
 
 void TouchMode::update(const Input& in) {
@@ -87,17 +94,20 @@ void TouchMode::update(const Input& in) {
     if (touch_.count > 0)
         lastDeltaTime_ = touch_.touches[0].delta_time;
 
-    if (in.down & HidNpadButton_Y) canvasView_ = !canvasView_;
+    if (in.down & HidNpadButton_Y) view_ = (view_ + 1) % VIEW_COUNT;
     if (in.down & HidNpadButton_X) resetStats();
-    if (in.down & HidNpadButton_A) clearCanvas();
+    if (in.down & HidNpadButton_A) {
+        if (view_ == VIEW_PAINT) clearCanvas();
+        else if (view_ == VIEW_GRID) clearGrid();
+    }
 
     // Advance the rainbow brush so the paint trail varies in colour, making
     // overlapping passes and coverage gaps easier to distinguish.
     paintHue_ += in.dtSec * 0.45;
     while (paintHue_ >= 1.0) paintHue_ -= 1.0;
 
-    // Accumulate paint while a finger is down (movement leaves a trail).
-    if (canvasView_) {
+    if (view_ == VIEW_PAINT) {
+        // Accumulate paint while a finger is down (movement leaves a trail).
         for (int i = 0; i < touch_.count; i++) {
             const HidTouchState& t = touch_.touches[i];
             int d = (int)((t.diameter_x + t.diameter_y) / 2);
@@ -106,6 +116,34 @@ void TouchMode::update(const Input& in) {
             canvasDisc((int)t.x, (int)t.y, r,
                        rainbow((float)paintHue_ + (float)t.finger_id * 0.13f));
         }
+    } else if (view_ == VIEW_GRID) {
+        // Light up every grid cell a contact passes through.
+        for (int i = 0; i < touch_.count; i++) {
+            int c = (int)touch_.touches[i].x / (Gfx::W / GRID_COLS);
+            int r = (int)touch_.touches[i].y / (Gfx::H / GRID_ROWS);
+            if (c >= 0 && c < GRID_COLS && r >= 0 && r < GRID_ROWS)
+                gridHit_[r * GRID_COLS + c] = true;
+        }
+    }
+
+    // Single-finger jitter: spread of the contact point while exactly one
+    // finger rests on the panel (cumulative variance over the contact).
+    if (touch_.count == 1) {
+        double x = touch_.touches[0].x, y = touch_.touches[0].y;
+        jitN_     += 1.0;
+        jitSumX_  += x;      jitSumY_  += y;
+        jitSumXX_ += x * x;  jitSumYY_ += y * y;
+        if (jitN_ >= 8.0) {
+            double mx = jitSumX_ / jitN_, my = jitSumY_ / jitN_;
+            double vx = jitSumXX_ / jitN_ - mx * mx;
+            double vy = jitSumYY_ / jitN_ - my * my;
+            if (vx < 0.0) vx = 0.0;
+            if (vy < 0.0) vy = 0.0;
+            jitterPx_ = __builtin_sqrt(vx + vy);
+        }
+    } else {
+        jitN_ = jitSumX_ = jitSumY_ = jitSumXX_ = jitSumYY_ = 0.0;
+        jitterPx_ = 0.0;
     }
 
     // Touch report-rate measurement from the HID sampling counter.
@@ -127,92 +165,108 @@ void TouchMode::update(const Input& in) {
 }
 
 const char* TouchMode::controls() const {
-    return canvasView_
-        ? "A Clear canvas   X Reset stats   Y Live view   B Menu"
-        : "A Clear canvas   X Reset stats   Y Paint canvas   B Menu";
+    if (view_ == VIEW_PAINT)
+        return "A Clear canvas   X Reset stats   Y Grid view   B Menu";
+    if (view_ == VIEW_GRID)
+        return "A Reset grid   X Reset stats   Y Live view   B Menu";
+    return "X Reset stats   Y Paint canvas   B Menu";
 }
 
 void TouchMode::render(Gfx& g) {
-    const u32 white = Gfx::rgb(255, 255, 255);
-    const u32 dim   = Gfx::rgb(150, 156, 178);
-    const u32 panel = Gfx::rgb(22, 26, 38);
-
-    // --- background ---
-    if (canvasView_) {
-        g.blitFull(s_canvas);
-    } else {
-        g.clear(Gfx::rgb(12, 14, 20));
-        // Faint reference grid.
-        const u32 grid = Gfx::rgb(26, 30, 42);
-        for (int x = 0; x < Gfx::W; x += 80) g.vLine(x, 0, Gfx::H, grid);
-        for (int y = 0; y < Gfx::H; y += 80) g.hLine(0, y, Gfx::W, grid);
-    }
-
+    const u32 white  = Gfx::rgb(255, 255, 255);
+    const u32 dim    = Gfx::rgb(150, 156, 178);
+    const u32 panel  = Gfx::rgb(22, 26, 38);
+    const u32 shadow = Gfx::rgb(0, 0, 0);
     char line[96];
 
-    // --- info panels (drawn before the markers so markers stay on top) ---
-    if (canvasView_) {
-        // Transparent, self-fitting instruction text - no opaque block, so the
-        // painted canvas shows through everywhere.
-        const u32 shadow = Gfx::rgb(0, 0, 0);
+    if (view_ == VIEW_PAINT) {
+        g.blitFull(s_canvas);
         g.drawTextShadow(12, 40, 2, white, shadow,
                          "PAINT CANVAS - sweep every part of the panel");
         g.drawTextShadow(12, 62, 2, dim, shadow,
                          "uncoloured areas reveal dead / insensitive zones");
-    } else {
-        // Left panel: per-finger properties.
-        const int px = 8, py = 38, pw = 620;
-        int rows = 4 + (touch_.count > 0 ? touch_.count : 1);
-        int ph = 16 + rows * 22;
-        g.fillRect(px, py, pw, ph, panel);
-
-        int tx = px + 12, ty = py + 10;
-        snprintf(line, sizeof(line), "Active touches: %d", touch_.count);
-        g.drawText(tx, ty, 2, white, line); ty += 24;
-        snprintf(line, sizeof(line), "Max simultaneous: %d / 16", maxFingers_);
-        g.drawText(tx, ty, 2, dim, line); ty += 24;
-        snprintf(line, sizeof(line), "Primary delta_time: %.2f ms",
-                 (double)lastDeltaTime_ / 1.0e6);
-        g.drawText(tx, ty, 2, dim, line); ty += 28;
-
-        g.drawText(tx, ty, 2, Gfx::rgb(120,180,255),
-                   "id  x     y     dia     rot    state");
-        ty += 24;
-
-        if (touch_.count == 0) {
-            g.drawText(tx, ty, 2, dim, "-- touch the screen --");
-        } else {
-            for (int i = 0; i < touch_.count; i++) {
-                const HidTouchState& t = touch_.touches[i];
-                // Start/End are one-frame events; in between a finger is "HELD".
-                const char* flag = (t.attributes & HidTouchAttribute_Start) ? "START"
-                                 : (t.attributes & HidTouchAttribute_End)   ? "END"
-                                 : "HELD";
-                // rotation_angle is u32 in libnx but the value is signed:
-                // negative angles wrap to huge values, so read it back as s32.
-                snprintf(line, sizeof(line), "%-3lu %4u  %4u  %3ux%-3u %5d  %-5s",
-                         (unsigned long)t.finger_id, t.x, t.y,
-                         t.diameter_x, t.diameter_y,
-                         (int)(s32)t.rotation_angle, flag);
-                g.drawText(tx, ty, 2, fingerColor(t.finger_id), line);
-                ty += 22;
-            }
-        }
-
-        // Report-rate panel.
-        const int fx = 8, fy = py + ph + 12, fw = 620, fh = 130;
-        g.fillRect(fx, fy, fw, fh, panel);
-        int rx = fx + 12, ry = fy + 10;
-        g.drawText(rx, ry, 2, Gfx::rgb(120,180,255), "TOUCH REPORT RATE"); ry += 26;
-        snprintf(line, sizeof(line), "Current: %6.1f Hz", curHz_);
-        g.drawText(rx, ry, 3, white, line); ry += 30;
-        snprintf(line, sizeof(line), "Min %5.1f   Max %5.1f Hz", minHz_, maxHz_);
-        g.drawText(rx, ry, 2, dim, line); ry += 24;
-        snprintf(line, sizeof(line), "sampling_number: %lu",
-                 (unsigned long)touch_.sampling_number);
-        g.drawText(rx, ry, 2, dim, line);
+        return;
     }
 
+    if (view_ == VIEW_GRID) {
+        const int cw = Gfx::W / GRID_COLS, ch = Gfx::H / GRID_ROWS;
+        int hits = 0;
+        for (int r = 0; r < GRID_ROWS; r++) {
+            for (int c = 0; c < GRID_COLS; c++) {
+                bool hit = gridHit_[r * GRID_COLS + c];
+                if (hit) hits++;
+                g.fillRect(c * cw, r * ch, cw, ch,
+                           hit ? Gfx::rgb(38, 132, 74) : Gfx::rgb(20, 23, 32));
+                g.drawRect(c * cw, r * ch, cw, ch, Gfx::rgb(46, 52, 70));
+            }
+        }
+        snprintf(line, sizeof(line), "GRID COVERAGE   %d / %d cells",
+                 hits, GRID_COLS * GRID_ROWS);
+        g.drawTextShadow(12, 40, 2, white, shadow, line);
+        g.drawTextShadow(12, 62, 2, dim, shadow,
+                         "tap every cell to map the full digitizer");
+        return;
+    }
+
+    // --- VIEW_LIVE ---
+    g.clear(Gfx::rgb(12, 14, 20));
+    const u32 grid = Gfx::rgb(26, 30, 42);
+    for (int x = 0; x < Gfx::W; x += 80) g.vLine(x, 0, Gfx::H, grid);
+    for (int y = 0; y < Gfx::H; y += 80) g.hLine(0, y, Gfx::W, grid);
+
+    // Left panel: per-finger properties.
+    const int px = 8, py = 38, pw = 620;
+    int rows = 5 + (touch_.count > 0 ? touch_.count : 1);
+    int ph = 16 + rows * 22;
+    g.fillRect(px, py, pw, ph, panel);
+
+    int tx = px + 12, ty = py + 10;
+    snprintf(line, sizeof(line), "Active touches: %d", touch_.count);
+    g.drawText(tx, ty, 2, white, line); ty += 24;
+    snprintf(line, sizeof(line), "Max simultaneous: %d / 16", maxFingers_);
+    g.drawText(tx, ty, 2, dim, line); ty += 24;
+    snprintf(line, sizeof(line), "Primary delta_time: %.2f ms",
+             (double)lastDeltaTime_ / 1.0e6);
+    g.drawText(tx, ty, 2, dim, line); ty += 24;
+    snprintf(line, sizeof(line), "Single-finger jitter: %.2f px", jitterPx_);
+    g.drawText(tx, ty, 2, dim, line); ty += 28;
+
+    g.drawText(tx, ty, 2, Gfx::rgb(120,180,255),
+               "id  x     y     dia     rot    state");
+    ty += 24;
+
+    if (touch_.count == 0) {
+        g.drawText(tx, ty, 2, dim, "-- touch the screen --");
+    } else {
+        for (int i = 0; i < touch_.count; i++) {
+            const HidTouchState& t = touch_.touches[i];
+            // Start/End are one-frame events; in between a finger is "HELD".
+            const char* flag = (t.attributes & HidTouchAttribute_Start) ? "START"
+                             : (t.attributes & HidTouchAttribute_End)   ? "END"
+                             : "HELD";
+            // rotation_angle is u32 in libnx but the value is signed:
+            // negative angles wrap to huge values, so read it back as s32.
+            snprintf(line, sizeof(line), "%-3lu %4u  %4u  %3ux%-3u %5d  %-5s",
+                     (unsigned long)t.finger_id, t.x, t.y,
+                     t.diameter_x, t.diameter_y,
+                     (int)(s32)t.rotation_angle, flag);
+            g.drawText(tx, ty, 2, fingerColor(t.finger_id), line);
+            ty += 22;
+        }
+    }
+
+    // Report-rate panel.
+    const int fx = 8, fy = py + ph + 12, fw = 620, fh = 130;
+    g.fillRect(fx, fy, fw, fh, panel);
+    int rx = fx + 12, ry = fy + 10;
+    g.drawText(rx, ry, 2, Gfx::rgb(120,180,255), "TOUCH REPORT RATE"); ry += 26;
+    snprintf(line, sizeof(line), "Current: %6.1f Hz", curHz_);
+    g.drawText(rx, ry, 3, white, line); ry += 30;
+    snprintf(line, sizeof(line), "Min %5.1f   Max %5.1f Hz", minHz_, maxHz_);
+    g.drawText(rx, ry, 2, dim, line); ry += 24;
+    snprintf(line, sizeof(line), "sampling_number: %lu",
+             (unsigned long)touch_.sampling_number);
+    g.drawText(rx, ry, 2, dim, line);
 }
 
 // Live touch markers are drawn here, after the App chrome, so the touch
