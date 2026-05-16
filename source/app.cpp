@@ -3,13 +3,15 @@
 #include "display_mode.hpp"
 #include "touch_mode.hpp"
 #include "gesture_mode.hpp"
+#include "controls_mode.hpp"
 #include <cstdio>
 
 // Concrete mode instances live for the whole program.
-static MenuMode    s_menu;
-static DisplayMode s_display;
-static TouchMode   s_touch;
-static GestureMode s_gesture;
+static MenuMode     s_menu;
+static DisplayMode  s_display;
+static TouchMode    s_touch;
+static GestureMode  s_gesture;
+static ControlsMode s_controls;
 
 bool App::init(ModeId start) {
     if (!gfx_.init())
@@ -23,10 +25,11 @@ bool App::init(ModeId start) {
     hidInitializeTouchScreen();
     hidInitializeGesture();
 
-    modes_[(int)ModeId::Menu]    = &s_menu;
-    modes_[(int)ModeId::Display] = &s_display;
-    modes_[(int)ModeId::Touch]   = &s_touch;
-    modes_[(int)ModeId::Gesture] = &s_gesture;
+    modes_[(int)ModeId::Menu]     = &s_menu;
+    modes_[(int)ModeId::Display]  = &s_display;
+    modes_[(int)ModeId::Touch]    = &s_touch;
+    modes_[(int)ModeId::Gesture]  = &s_gesture;
+    modes_[(int)ModeId::Controls] = &s_controls;
 
     current_ = (start >= ModeId::Menu && start < ModeId::COUNT) ? start : ModeId::Menu;
     modes_[(int)current_]->onEnter();
@@ -96,25 +99,30 @@ void App::run() {
         // --- input ---
         padUpdate(&pad_);
         Input in;
-        in.down  = padGetButtonsDown(&pad_);
-        in.up    = padGetButtonsUp(&pad_);
-        in.held  = padGetButtons(&pad_);
-        in.dtSec = dt;
+        in.down   = padGetButtonsDown(&pad_);
+        in.up     = padGetButtonsUp(&pad_);
+        in.held   = padGetButtons(&pad_);
+        in.lstick = padGetStickPos(&pad_, 0);
+        in.rstick = padGetStickPos(&pad_, 1);
+        in.dtSec  = dt;
         hidGetTouchScreenStates(&in.touch, 1);
 
         // --- global navigation ---
+        Mode* m = modes_[(int)current_];
         if (in.down & HidNpadButton_Plus)
             break;  // return to hbmenu
 
-        if (in.down & HidNpadButton_ZR)
-            switchTo((ModeId)(((int)current_ + 1) % (int)ModeId::COUNT));
-        else if (in.down & HidNpadButton_ZL)
-            switchTo((ModeId)(((int)current_ + (int)ModeId::COUNT - 1) % (int)ModeId::COUNT));
-        else if ((in.down & HidNpadButton_B) && current_ != ModeId::Menu)
+        if (!m->capturesCycle()) {
+            if (in.down & HidNpadButton_ZR)
+                switchTo((ModeId)(((int)current_ + 1) % (int)ModeId::COUNT));
+            else if (in.down & HidNpadButton_ZL)
+                switchTo((ModeId)(((int)current_ + (int)ModeId::COUNT - 1) % (int)ModeId::COUNT));
+        }
+        if ((in.down & HidNpadButton_B) && current_ != ModeId::Menu)
             switchTo(ModeId::Menu);
 
         // --- update active mode ---
-        Mode* m = modes_[(int)current_];
+        m = modes_[(int)current_];
         m->update(in);
         if (m->requestMode != ModeId::COUNT) {
             ModeId req = m->requestMode;

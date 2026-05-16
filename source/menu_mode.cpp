@@ -10,6 +10,7 @@ const Item kItems[] = {
     {"Display Test",     "Solid colours, gradients, geometry, flicker",  ModeId::Display},
     {"Touchscreen Test", "Multitouch, report rate, dead-zone canvas",    ModeId::Touch},
     {"Gesture Test",     "Tap, swipe, pinch and rotate recognition",     ModeId::Gesture},
+    {"Controls Test",    "Buttons, stick drift, motion sensor, rumble",  ModeId::Controls},
 };
 constexpr int kCount = (int)std::size(kItems);
 

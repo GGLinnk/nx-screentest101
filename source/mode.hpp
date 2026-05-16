@@ -9,6 +9,7 @@ enum class ModeId {
     Display,
     Touch,
     Gesture,
+    Controls,
     COUNT
 };
 
@@ -18,6 +19,8 @@ struct Input {
     u64 up    = 0;   // buttons newly released this frame
     u64 held  = 0;   // buttons currently held
     HidTouchScreenState touch{};   // up to 16 simultaneous touch points
+    HidAnalogStickState lstick{};  // left analog stick position
+    HidAnalogStickState rstick{};  // right analog stick position
     double dtSec = 0.0;            // wall-clock seconds since previous frame
 };
 
@@ -43,6 +46,10 @@ public:
     // When true, the App draws its chrome text without the solid bars,
     // so the underlying view shows through (used by the paint canvas).
     virtual bool transparentChrome() const { return false; }
+
+    // When true, the App leaves ZL/ZR to the mode instead of using them to
+    // cycle modes (the Controls test needs every button free to be tested).
+    virtual bool capturesCycle() const { return false; }
 
     // A mode sets this to ask the App to switch screens; the App clears it.
     ModeId requestMode = ModeId::COUNT;
