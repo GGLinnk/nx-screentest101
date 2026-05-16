@@ -193,14 +193,23 @@ static int generateStills() {
 // ---------------------------------------------------------------------------
 // Video: a continuous scripted walk-through of every feature.
 // ---------------------------------------------------------------------------
-static void videoMenu() {
-    MenuMode m; m.onEnter();
-    for (int f = 0; f < 80; f++) {
+static int g_menuCursor = 0;
+
+// Show the main menu and walk the selection to `target` card; used as the
+// transition back through the menu between every mode segment.
+static void menuInterlude(MenuMode& m, int target, int frames) {
+    int step  = target >= g_menuCursor ? 1 : -1;
+    int moves = step > 0 ? target - g_menuCursor : g_menuCursor - target;
+    for (int f = 0; f < frames; f++) {
         Input in{}; in.dtSec = kDt;
-        if (f == 24 || f == 40 || f == 56) in.down = HidNpadButton_AnyDown;
+        if (moves > 0 && f >= 6 && f % 8 == 0) {
+            in.down = step > 0 ? HidNpadButton_AnyDown : HidNpadButton_AnyUp;
+            moves--;
+        }
         m.update(in);
         videoFrame(&m);
     }
+    g_menuCursor = target;
 }
 
 static void videoDisplay() {
@@ -363,12 +372,18 @@ static int generateVideo() {
     if (!g_pipe) { printf("cannot start ffmpeg\n"); return 1; }
 
     printf("rendering feature walk-through...\n");
-    videoMenu();
+    MenuMode menu; menu.onEnter();
+    menuInterlude(menu, 0, 80);     // open on the menu, Display selected
     videoDisplay();
+    menuInterlude(menu, 1, 56);     // back to menu, move to Touchscreen
     videoTouch();
+    menuInterlude(menu, 2, 56);     // back to menu, move to Gesture
     videoGesture();
+    menuInterlude(menu, 3, 56);     // back to menu, move to Controls
     videoControls();
+    menuInterlude(menu, 3, 50);     // back to menu before System Info (Minus)
     videoHwInfo();
+    menuInterlude(menu, 0, 56);     // close on the menu
 
     int rc = pclose(g_pipe);
     g_pipe = nullptr;
