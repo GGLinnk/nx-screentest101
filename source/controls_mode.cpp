@@ -48,6 +48,15 @@ void drawStick(Gfx& g, int bx, int by, const HidAnalogStickState& s,
     g.fillCircle(dx, dy, 7, Gfx::rgb(120, 180, 255));
 }
 
+// A labelled pill that lights up while its input is active.
+void drawPill(Gfx& g, int x, int y, int w, int h, const char* label, bool on) {
+    g.fillRect(x, y, w, h, on ? Gfx::rgb(70, 200, 110) : Gfx::rgb(22, 26, 38));
+    g.drawRect(x, y, w, h, on ? Gfx::rgb(120, 220, 150) : Gfx::rgb(46, 52, 70));
+    int tw = g.textWidth(2, label);
+    g.drawText(x + (w - tw) / 2, y + (h - 16) / 2, 2,
+               on ? Gfx::rgb(10, 22, 12) : Gfx::rgb(150, 156, 178), label);
+}
+
 } // namespace
 
 void ControlsMode::onEnter() {
@@ -56,6 +65,10 @@ void ControlsMode::onEnter() {
     lMinX_ = lMaxX_ = lMinY_ = lMaxY_ = 0;
     rMinX_ = rMaxX_ = rMinY_ = rMaxY_ = 0;
     six_ = HidSixAxisSensorState{};
+    captureHeld_ = false;
+    haveVolume_ = havePrevVol_ = false;
+    volume_ = volMin_ = volMax_ = prevVolume_ = 0;
+    volUpFlash_ = volDownFlash_ = 0.0;
 
     hidGetSixAxisSensorHandles(&sixHandheld_, 1, HidNpadIdType_Handheld,
                                HidNpadStyleTag_NpadHandheld);
@@ -74,6 +87,12 @@ void ControlsMode::onEnter() {
                                   HidNpadStyleTag_NpadFullKey);
     hidInitializeVibrationDevices(vibJoyDual_, 2, HidNpadIdType_No1,
                                   HidNpadStyleTag_NpadJoyDual);
+
+    hidsysInitialize();
+    hidsysActivateCaptureButton();
+    audctlInitialize();
+    audctlGetTargetVolumeMin(&volMin_);
+    audctlGetTargetVolumeMax(&volMax_);
 }
 
 void ControlsMode::onExit() {
@@ -86,12 +105,41 @@ void ControlsMode::onExit() {
     hidStopSixAxisSensor(sixFullKey_);
     hidStopSixAxisSensor(sixJoyDual_[0]);
     hidStopSixAxisSensor(sixJoyDual_[1]);
+
+    audctlExit();
+    hidsysExit();
 }
 
 void ControlsMode::update(const Input& in) {
     held_   = in.held;
     lstick_ = in.lstick;
     rstick_ = in.rstick;
+
+    // B and + are captured so they can be tested; L or R held with B is the
+    // way back to the menu.
+    if ((held_ & (HidNpadButton_L | HidNpadButton_R)) && (in.down & HidNpadButton_B))
+        requestSwitch(ModeId::Menu);
+
+    // Capture button: its own HID shared-memory state, not an npad button.
+    HidCaptureButtonState cap{};
+    if (hidGetCaptureButtonStates(&cap, 1) > 0)
+        captureHeld_ = cap.buttons != 0;
+
+    // Volume buttons are not in the npad mask either; detect them as changes
+    // in the active output target's volume level.
+    AudioTarget target = AudioTarget_Speaker;
+    audctlGetActiveOutputTarget(&target);
+    s32 vol = 0;
+    if (R_SUCCEEDED(audctlGetTargetVolume(&vol, target))) {
+        haveVolume_ = true;
+        if (havePrevVol_ && vol > prevVolume_) volUpFlash_   = 0.4;
+        if (havePrevVol_ && vol < prevVolume_) volDownFlash_ = 0.4;
+        prevVolume_  = vol;
+        havePrevVol_ = true;
+        volume_      = vol;
+    }
+    if (volUpFlash_   > 0.0) volUpFlash_   -= in.dtSec;
+    if (volDownFlash_ > 0.0) volDownFlash_ -= in.dtSec;
 
     // Grow each stick's drift box to cover every position seen.
     if (lstick_.x < lMinX_) lMinX_ = lstick_.x;
@@ -128,7 +176,6 @@ void ControlsMode::render(Gfx& g) {
     const u32 dim    = Gfx::rgb(150, 156, 178);
     const u32 accent = Gfx::rgb(120, 180, 255);
     const u32 panel  = Gfx::rgb(22, 26, 38);
-    const u32 lit    = Gfx::rgb(70, 200, 110);
     char line[96];
 
     g.clear(Gfx::rgb(12, 14, 20));
@@ -146,19 +193,22 @@ void ControlsMode::render(Gfx& g) {
     // --- buttons ---
     g.drawText(560, 42, 2, accent, "BUTTONS");
     const int BX = 560, BY = 64, BW = 168, BH = 46, GAP = 12;
-    for (int i = 0; i < kButtonCount; i++) {
-        int x = BX + (i % 4) * (BW + GAP);
-        int y = BY + (i / 4) * (BH + GAP);
-        bool on = held_ & kButtons[i].mask;
-        g.fillRect(x, y, BW, BH, on ? lit : panel);
-        g.drawRect(x, y, BW, BH, on ? Gfx::rgb(120, 220, 150) : Gfx::rgb(46, 52, 70));
-        int tw = g.textWidth(2, kButtons[i].label);
-        g.drawText(x + (BW - tw) / 2, y + 15, 2,
-                   on ? Gfx::rgb(10, 22, 12) : dim, kButtons[i].label);
+    for (int i = 0; i < kButtonCount; i++)
+        drawPill(g, BX + (i % 4) * (BW + GAP), BY + (i / 4) * (BH + GAP),
+                 BW, BH, kButtons[i].label, held_ & kButtons[i].mask);
+
+    // System buttons that are not part of the npad mask.
+    int sy = BY + 4 * (BH + GAP);
+    drawPill(g, BX,                  sy, BW, BH, "Capture", captureHeld_);
+    drawPill(g, BX + (BW + GAP),     sy, BW, BH, "Vol -",   volDownFlash_ > 0.0);
+    drawPill(g, BX + 2 * (BW + GAP), sy, BW, BH, "Vol +",   volUpFlash_   > 0.0);
+    if (haveVolume_) {
+        snprintf(line, sizeof(line), "Vol %ld / %ld", (long)volume_, (long)volMax_);
+        g.drawText(BX + 3 * (BW + GAP), sy + 15, 2, dim, line);
     }
 
     // --- motion sensor + rumble panel ---
-    const int mx = 48, my = 330, mw = 1188, mh = 338;
+    const int mx = 48, my = 356, mw = 1188, mh = 312;
     g.fillRect(mx, my, mw, mh, panel);
     int tx = mx + 22, ty = my + 18;
     g.drawText(tx, ty, 2, accent, "MOTION SENSOR"); ty += 34;

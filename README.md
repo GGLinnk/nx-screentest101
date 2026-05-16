@@ -41,15 +41,19 @@ faults, analog-stick drift, the motion sensor and HD rumble.
   direction, velocity, scale, rotation angle and a recent-gesture log.
 
 **Controls Test**
-- Every button lights up while held.
+- Every button lights up while held, including the Capture button and the
+  console volume buttons.
 - Both analog sticks shown with a deadzone ring and a max-excursion box for
   spotting **stick drift**.
 - Motion sensor readout (gyro + accelerometer) with a tilt bubble.
 - HD rumble test: hold `ZL` / `ZR` to buzz each actuator.
+- `B` and `+` are inhibited here so they can be tested; hold `L` or `R`
+  together with `B` to return to the menu.
 
 **System Info**
 - Firmware version, battery charge and charger state, console temperature
   and the current operation mode (handheld or docked).
+- Opened with `-` (Minus) from the main menu.
 
 A shared HUD shows the active mode and the live **render FPS**.
 
@@ -58,6 +62,7 @@ A shared HUD shows the active mode and the live **render FPS**.
 | Input | Action |
 |---|---|
 | D-pad + `A` / touch | Select a test from the menu |
+| `-` | (Menu) open System Info |
 | `ZL` / `ZR` | Cycle between modes (except in Controls Test) |
 | `B` | Return to menu |
 | `+` | Exit to hbmenu |
@@ -67,6 +72,7 @@ A shared HUD shows the active mode and the live **render FPS**.
 | `Y` | (Display) toggle HUD · (Touch) cycle Live / Paint / Grid view |
 | `A` | (Touch) clear canvas or reset grid |
 | hold inputs · `ZL`/`ZR` | (Controls) test buttons/sticks · fire HD rumble |
+| `L` / `R` + `B` | (Controls) return to menu (`B` and `+` alone are inhibited) |
 
 ## Building
 
@@ -107,8 +113,11 @@ With no argument it opens the main menu as usual. (Useful for hbmenu
 - The touch report-rate panel shows a plausible non-zero Hz while touching.
 - The paint canvas accumulates strokes; the grid view marks tapped cells.
 - Gesture mode reports tap / swipe / pinch / rotate and logs them.
-- Controls mode lights up every button, tracks both sticks, shows live motion
-  data and rumbles on `ZL`/`ZR`.
+- Controls mode lights up every button (including Capture and the volume
+  buttons), tracks both sticks, shows live motion data and rumbles on
+  `ZL`/`ZR`; `L`/`R` + `B` returns to the menu.
+- System Info, opened with `-` from the menu, shows a valid firmware version,
+  battery level and a non-zero temperature.
 - `+` returns cleanly to the homebrew menu.
 
 ## Project layout

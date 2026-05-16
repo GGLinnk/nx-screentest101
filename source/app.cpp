@@ -111,17 +111,21 @@ void App::run() {
         hidGetTouchScreenStates(&in.touch, 1);
 
         // --- global navigation ---
+        // The ZL/ZR cycle covers Menu..Controls; System Info is reachable
+        // only from the menu (Minus), so it is excluded from the cycle.
+        const int cycle = (int)ModeId::HwInfo;
         Mode* m = modes_[(int)current_];
-        if (in.down & HidNpadButton_Plus)
+
+        if (!m->capturesExit() && (in.down & HidNpadButton_Plus))
             break;  // return to hbmenu
 
         if (!m->capturesCycle()) {
             if (in.down & HidNpadButton_ZR)
-                switchTo((ModeId)(((int)current_ + 1) % (int)ModeId::COUNT));
+                switchTo((ModeId)(((int)current_ + 1) % cycle));
             else if (in.down & HidNpadButton_ZL)
-                switchTo((ModeId)(((int)current_ + (int)ModeId::COUNT - 1) % (int)ModeId::COUNT));
+                switchTo((ModeId)(((int)current_ + cycle - 1) % cycle));
         }
-        if ((in.down & HidNpadButton_B) && current_ != ModeId::Menu)
+        if (!m->capturesExit() && (in.down & HidNpadButton_B) && current_ != ModeId::Menu)
             switchTo(ModeId::Menu);
 
         // --- update active mode ---

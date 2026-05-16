@@ -14,13 +14,21 @@ public:
     void render(Gfx& g) override;
     const char* name() const override { return "Controls Test"; }
     const char* controls() const override {
-        return "Hold inputs to test   ZL/ZR Rumble   B Menu";
+        return "Hold inputs   ZL/ZR Rumble   L or R + B  Exit to menu";
     }
     bool capturesCycle() const override { return true; }
+    bool capturesExit()  const override { return true; }
 
 private:
     u64 held_ = 0;
     HidAnalogStickState lstick_{}, rstick_{};
+
+    // System buttons that are not part of the npad button mask.
+    bool   captureHeld_ = false;
+    s32    volume_ = 0, volMin_ = 0, volMax_ = 0;
+    s32    prevVolume_ = 0;
+    bool   haveVolume_ = false, havePrevVol_ = false;
+    double volUpFlash_ = 0.0, volDownFlash_ = 0.0;
 
     // Per-stick min/max excursion since entering the mode (drift box).
     s32 lMinX_ = 0, lMaxX_ = 0, lMinY_ = 0, lMaxY_ = 0;

@@ -25,6 +25,7 @@ void HwInfoMode::onEnter() {
     psmInitialize();
     setsysInitialize();
     tsInitialize();
+    tsSessionOk_ = R_SUCCEEDED(tsOpenSession(&tsSession_, TsDeviceCode_LocationInternal));
 
     SetSysFirmwareVersion fw{};
     if (R_SUCCEEDED(setsysGetFirmwareVersion(&fw)))
@@ -34,6 +35,7 @@ void HwInfoMode::onEnter() {
 }
 
 void HwInfoMode::onExit() {
+    if (tsSessionOk_) tsSessionClose(&tsSession_);
     tsExit();
     setsysExit();
     psmExit();
@@ -47,8 +49,16 @@ void HwInfoMode::update(const Input&) {
     psmGetChargerType(&ct);
     charger_ = (int)ct;
 
-    s32 t = 0;
-    haveTemp_ = R_SUCCEEDED(tsGetTemperature(TsLocation_Internal, &t));
+    // tsSessionGetTemperature works on current firmware; the legacy
+    // tsGetTemperature is only a fallback for pre-14.0.0 systems.
+    float t = 0.0f;
+    if (tsSessionOk_) {
+        haveTemp_ = R_SUCCEEDED(tsSessionGetTemperature(&tsSession_, &t));
+    } else {
+        s32 ti = 0;
+        haveTemp_ = R_SUCCEEDED(tsGetTemperature(TsLocation_Internal, &ti));
+        t = (float)ti;
+    }
     if (haveTemp_) tempC_ = t;
 }
 
@@ -74,7 +84,7 @@ void HwInfoMode::render(Gfx& g) {
 
     drawRow(g, tx, ty, "Charger", chargerName(charger_)); ty += 58;
 
-    if (haveTemp_) snprintf(value, sizeof(value), "%ld C", (long)tempC_);
+    if (haveTemp_) snprintf(value, sizeof(value), "%.1f C", tempC_);
     else           snprintf(value, sizeof(value), "n/a");
     drawRow(g, tx, ty, "Temperature", value); ty += 58;
 

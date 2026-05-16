@@ -52,6 +52,10 @@ public:
     // cycle modes (the Controls test needs every button free to be tested).
     virtual bool capturesCycle() const { return false; }
 
+    // When true, the App leaves B and + to the mode: it neither returns to
+    // the menu on B nor exits the app on +, so the mode owns its way out.
+    virtual bool capturesExit() const { return false; }
+
     // A mode sets this to ask the App to switch screens; the App clears it.
     ModeId requestMode = ModeId::COUNT;
     void requestSwitch(ModeId m) { requestMode = m; }
