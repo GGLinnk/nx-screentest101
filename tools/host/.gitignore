@@ -1,2 +1,2 @@
-mockgen
-out/
+build/
+dist/

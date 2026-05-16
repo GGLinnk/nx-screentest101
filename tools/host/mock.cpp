@@ -13,10 +13,12 @@ static HidGestureState       g_gesture;
 static HidSixAxisSensorState g_sixaxis;
 static bool                  g_capture;
 static u64                   g_sampling;
+static s32                   g_volume = 60;
 
 void mockSetGesture(const HidGestureState* g) { g_gesture = *g; }
 void mockSetSixAxis(const HidSixAxisSensorState* s) { g_sixaxis = *s; }
 void mockSetCapture(bool pressed) { g_capture = pressed; }
+void mockSetVolume(s32 volume) { g_volume = volume; }
 const u32* mockFramebuffer(void) { return g_fb; }
 
 // --- framebuffer ------------------------------------------------------------
@@ -108,7 +110,7 @@ void   tsSessionClose(TsSession*) {}
 // --- audctl -----------------------------------------------------------------
 Result audctlInitialize(void) { return 0; }
 void   audctlExit(void) {}
-Result audctlGetTargetVolume(s32* volume_out, AudioTarget) { *volume_out = 60; return 0; }
+Result audctlGetTargetVolume(s32* volume_out, AudioTarget) { *volume_out = g_volume; return 0; }
 Result audctlGetTargetVolumeMin(s32* volume_out) { *volume_out = 0; return 0; }
 Result audctlGetTargetVolumeMax(s32* volume_out) { *volume_out = 100; return 0; }
 Result audctlGetActiveOutputTarget(AudioTarget* target_out) {
