@@ -13,7 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     container: devkitpro/devkita64:latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout (with nxdisplaylib submodule)
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Build
         run: make
@@ -21,8 +24,8 @@ jobs:
       - name: Upload NRO
         uses: actions/upload-artifact@v5
         with:
-          name: screentest101-nro
-          path: screentest101.nro
+          name: nxscreentest-nro
+          path: dist/nxscreentest.nro
           if-no-files-found: error
 
   release:
@@ -32,14 +35,14 @@ jobs:
       - name: Download NRO
         uses: actions/download-artifact@v5
         with:
-          name: screentest101-nro
+          name: nxscreentest-nro
 
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ github.ref_name }}" \
-            screentest101.nro \
+            dist/nxscreentest.nro \
             --repo "${{ github.repository }}" \
             --title "${{ github.ref_name }}" \
             --generate-notes

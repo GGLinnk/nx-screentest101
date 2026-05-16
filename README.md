@@ -1,4 +1,4 @@
-# Screen Tester 101
+# NX Screen Test
 
 A Nintendo Switch homebrew **display, touchscreen and controller tester**,
 built with devkitPro / libnx. It renders entirely in software via the libnx
@@ -88,12 +88,12 @@ Requires devkitPro with the `switch-dev` group (`devkitA64` + `libnx`).
 DEVKITPRO=/opt/devkitpro make
 ```
 
-This produces `screentest101.nro`. `make clean` removes build artifacts.
+This produces `nxscreentest.nro`. `make clean` removes build artifacts.
 (`DEVKITPRO` is only needed if it is not already exported in your environment.)
 
 ## Running
 
-Copy `screentest101.nro` to the `/switch/` folder of your SD card and launch it
+Copy `nxscreentest.nro` to the `/switch/` folder of your SD card and launch it
 from the homebrew menu, or load the `.nro` in a Switch emulator.
 
 ### Launch shortcuts
@@ -101,11 +101,11 @@ from the homebrew menu, or load the `.nro` in a Switch emulator.
 A mode name can be passed as a launch argument to jump straight past the menu:
 
 ```
-screentest101.nro display
-screentest101.nro touch
-screentest101.nro gesture
-screentest101.nro controls
-screentest101.nro hwinfo
+nxscreentest.nro display
+nxscreentest.nro touch
+nxscreentest.nro gesture
+nxscreentest.nro controls
+nxscreentest.nro hwinfo
 ```
 
 With no argument it opens the main menu as usual. (Useful for hbmenu

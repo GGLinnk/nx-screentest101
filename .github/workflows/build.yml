@@ -10,7 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     container: devkitpro/devkita64:latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout (with nxdisplaylib submodule)
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Build
         run: make
@@ -18,6 +21,6 @@ jobs:
       - name: Upload NRO
         uses: actions/upload-artifact@v5
         with:
-          name: screentest101-nro
-          path: screentest101.nro
+          name: nxscreentest-nro
+          path: dist/nxscreentest.nro
           if-no-files-found: error

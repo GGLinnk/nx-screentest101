@@ -6,3 +6,6 @@ build/
 *.elf
 *.nacp
 *.map
+dist/
+.serena/
+.claude/

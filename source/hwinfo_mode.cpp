@@ -1,5 +1,5 @@
 #include "hwinfo_mode.hpp"
-#include "gfx.hpp"
+#include "nxdisplaylib/gfx.hpp"
 #include <cstdio>
 
 namespace {

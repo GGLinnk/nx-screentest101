@@ -3,12 +3,12 @@
 
 // Landing screen. Lists the test modes; pickable with the D-pad + A or by
 // tapping an entry (which doubles as a first touchscreen smoke test).
-class MenuMode : public Mode {
+class MenuMode : public View {
 public:
     void onEnter() override;
     void update(const Input& in) override;
     void render(Gfx& g) override;
-    const char* name() const override { return "Screen Tester 101"; }
+    const char* name() const override { return "NX Screen Test"; }
     bool showChrome() const override { return false; }
 
 private:

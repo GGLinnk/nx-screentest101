@@ -16,17 +16,19 @@ include $(DEVKITPRO)/libnx/switch_rules
 # DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
 #---------------------------------------------------------------------------------
-# Pinned, not derived from the directory name, so the output is screentest101.nro
+# Pinned, not derived from the directory name, so the output is nxscreentest.nro
 # regardless of what the checkout / clone directory is called.
-TARGET		:=	screentest101
+TARGET		:=	nxscreentest
 BUILD		:=	build
-SOURCES		:=	source
+# gfx + font live in the shared nxdisplaylib library (common ground with
+# nxdiag), pulled in as the libs/nxdisplaylib git submodule.
+SOURCES		:=	source libs/nxdisplaylib/source
 DATA		:=	data
-INCLUDES	:=	source
+INCLUDES	:=	source libs/nxdisplaylib/include
 
-APP_TITLE	:=	Screen Tester 101
+APP_TITLE	:=	NX Screen Test
 APP_AUTHOR	:=	GGLinnk
-APP_VERSION	:=	1.3.0
+APP_VERSION	:=	1.4.0
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -59,7 +61,7 @@ LIBDIRS	:= $(PORTLIBS) $(LIBNX)
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
+export OUTPUT	:=	$(CURDIR)/dist/$(TARGET)
 export TOPDIR	:=	$(CURDIR)
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
@@ -128,7 +130,7 @@ ifeq ($(strip $(NO_ICON)),)
 endif
 
 ifeq ($(strip $(NO_NACP)),)
-	export NROFLAGS += --nacp=$(CURDIR)/$(TARGET).nacp
+	export NROFLAGS += --nacp=$(CURDIR)/dist/$(TARGET).nacp
 endif
 
 ifneq ($(APP_TITLEID),)
@@ -146,16 +148,13 @@ all: $(BUILD)
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
+	@[ -d dist ] || mkdir -p dist
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-ifeq ($(strip $(APP_JSON)),)
-	@rm -fr $(BUILD) $(TARGET).nro $(TARGET).nacp $(TARGET).elf
-else
-	@rm -fr $(BUILD) $(TARGET).nsp $(TARGET).nso $(TARGET).npdm $(TARGET).elf
-endif
+	@rm -fr $(BUILD) dist
 
 
 #---------------------------------------------------------------------------------

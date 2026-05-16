@@ -1,29 +1,58 @@
-// Screen Tester 101 - Nintendo Switch homebrew display & touchscreen tester.
-// Entry point: starts the App, with a text-console fallback on failure.
+// NX Screen Test - Nintendo Switch homebrew display & touchscreen diagnostics.
+// Entry point: wires the test views into a nxd::Runner, with a text-console
+// fallback if the framebuffer cannot be brought up.
 
 #include <switch.h>
 #include <cstdio>
 #include <strings.h>
-#include "app.hpp"
+#include "nxdisplaylib/runner.hpp"
+#include "mode.hpp"
+#include "menu_mode.hpp"
+#include "display_mode.hpp"
+#include "touch_mode.hpp"
+#include "gesture_mode.hpp"
+#include "controls_mode.hpp"
+#include "hwinfo_mode.hpp"
 
 // Optional launch argument: a mode name to jump straight into (e.g. "touch").
-static ModeId parseStartMode(int argc, char* argv[]) {
+static int parseStartMode(int argc, char* argv[]) {
     for (int i = 1; i < argc; i++) {
-        if (!strcasecmp(argv[i], "display"))  return ModeId::Display;
-        if (!strcasecmp(argv[i], "touch"))    return ModeId::Touch;
-        if (!strcasecmp(argv[i], "gesture"))  return ModeId::Gesture;
-        if (!strcasecmp(argv[i], "controls")) return ModeId::Controls;
-        if (!strcasecmp(argv[i], "hwinfo"))   return ModeId::HwInfo;
+        if (!strcasecmp(argv[i], "display"))  return Display;
+        if (!strcasecmp(argv[i], "touch"))    return Touch;
+        if (!strcasecmp(argv[i], "gesture"))  return Gesture;
+        if (!strcasecmp(argv[i], "controls")) return Controls;
+        if (!strcasecmp(argv[i], "hwinfo"))   return HwInfo;
     }
-    return ModeId::Menu;
+    return Menu;
 }
 
 int main(int argc, char* argv[]) {
-    App app;
-    if (!app.init(parseStartMode(argc, argv))) {
+    static MenuMode     menu;
+    static DisplayMode  display;
+    static TouchMode    touch;
+    static GestureMode  gesture;
+    static ControlsMode controls;
+    static HwInfoMode   hwinfo;
+
+    // View list - index order matches the ModeId enum (Menu = 0).
+    static View* views[] = {
+        &menu, &display, &touch, &gesture, &controls, &hwinfo,
+    };
+
+    RunnerConfig cfg;
+    cfg.homeIndex   = Menu;     // B returns to the menu
+    cfg.cycleCount  = HwInfo;   // ZL/ZR cycle covers Menu..Controls; HwInfo excluded
+    cfg.showFps     = true;
+    cfg.initGesture = true;     // the gesture test needs the HID gesture engine
+#ifdef NXD_HOST
+    cfg.exitOnHomeBack = true;  // host preview: B/Esc on the menu quits
+#endif
+
+    Runner runner;
+    if (!runner.init(views, COUNT, cfg, parseStartMode(argc, argv))) {
         // Fall back to a text console so the failure is visible.
         consoleInit(NULL);
-        printf("Screen Tester 101: failed to initialise framebuffer.\n");
+        printf("NX Screen Test: failed to initialise framebuffer.\n");
         printf("Press + to exit.\n");
 
         PadState pad;
@@ -38,7 +67,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    app.run();
-    app.deinit();
+    runner.run();
+    runner.deinit();
     return 0;
 }

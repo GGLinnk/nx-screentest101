@@ -3,7 +3,7 @@
 
 // Display panel test: cycles through full-screen patterns used to spot dead /
 // stuck pixels, backlight bleed, colour banding, geometry and flicker issues.
-class DisplayMode : public Mode {
+class DisplayMode : public View {
 public:
     void onEnter() override;
     void update(const Input& in) override;

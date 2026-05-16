@@ -1,5 +1,5 @@
 #include "menu_mode.hpp"
-#include "gfx.hpp"
+#include "nxdisplaylib/gfx.hpp"
 #include <iterator>
 
 namespace {
@@ -28,7 +28,10 @@ bool inRect(int px, int py, int x, int y, int w, int h) {
 
 } // namespace
 
-void MenuMode::onEnter() { sel_ = 0; wasTouching_ = false; }
+// The selection persists across visits: returning from a test lands the
+// cursor back on it, so moving in and out of screens feels like navigation.
+// Only the touch latch is cleared, so a stale contact can't trigger a switch.
+void MenuMode::onEnter() { wasTouching_ = false; }
 
 void MenuMode::update(const Input& in) {
     if (in.down & HidNpadButton_AnyDown)
@@ -73,7 +76,7 @@ void MenuMode::render(Gfx& g) {
     g.clear(bg);
 
     // Title and subtitle, horizontally centred.
-    const char* title = "SCREEN TESTER 101";
+    const char* title = "NX SCREEN TEST";
     const char* sub   = "Nintendo Switch display & touchscreen diagnostics";
     g.drawText((Gfx::W - g.textWidth(6, title)) / 2, 96,  6, accent, title);
     g.drawText((Gfx::W - g.textWidth(2, sub))   / 2, 168, 2, dim,    sub);

@@ -3,7 +3,7 @@
 
 // System information screen: firmware version, battery charge and charger
 // state, console temperature and the current operation mode.
-class HwInfoMode : public Mode {
+class HwInfoMode : public View {
 public:
     void onEnter() override;
     void onExit() override;

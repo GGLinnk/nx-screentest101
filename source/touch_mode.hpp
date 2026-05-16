@@ -6,7 +6,7 @@
 //           rate (Hz) and single-finger jitter measurement
 //   Paint - persistent canvas swept to reveal dead / insensitive zones
 //   Grid  - cell-coverage map: tap every cell to confirm the whole digitizer
-class TouchMode : public Mode {
+class TouchMode : public View {
 public:
     void onEnter() override;
     void update(const Input& in) override;

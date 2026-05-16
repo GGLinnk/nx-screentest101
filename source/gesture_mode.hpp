@@ -8,7 +8,7 @@
 // Each gesture sequence keeps the *most significant* type it reached (so a
 // pinch is not masked by the trailing pan as a finger lifts), and the readout
 // is held on screen briefly after release so it stays readable.
-class GestureMode : public Mode {
+class GestureMode : public View {
 public:
     void onEnter() override;
     void update(const Input& in) override;

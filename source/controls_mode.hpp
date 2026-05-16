@@ -6,7 +6,7 @@
 // the motion sensor (gyro + accelerometer with a tilt bubble), and fires HD
 // rumble while ZL/ZR are held. ZL/ZR are captured here so they can be tested
 // rather than cycling modes; B still returns to the menu.
-class ControlsMode : public Mode {
+class ControlsMode : public View {
 public:
     void onEnter() override;
     void onExit() override;

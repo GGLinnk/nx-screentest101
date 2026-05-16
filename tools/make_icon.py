@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the Screen Tester 101 homebrew icon.
+"""Generate the NX Screen Test homebrew icon.
 
 Draws a 32x32 pixel-art Nintendo Switch - blue + red Joy-Cons with analog
 sticks, and a centre screen showing colour test bars with a touch crosshair -

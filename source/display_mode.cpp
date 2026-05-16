@@ -1,5 +1,5 @@
 #include "display_mode.hpp"
-#include "gfx.hpp"
+#include "nxdisplaylib/gfx.hpp"
 #include <cstdio>
 #include <iterator>
 
