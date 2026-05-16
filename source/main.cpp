@@ -9,9 +9,11 @@
 // Optional launch argument: a mode name to jump straight into (e.g. "touch").
 static ModeId parseStartMode(int argc, char* argv[]) {
     for (int i = 1; i < argc; i++) {
-        if (!strcasecmp(argv[i], "display")) return ModeId::Display;
-        if (!strcasecmp(argv[i], "touch"))   return ModeId::Touch;
-        if (!strcasecmp(argv[i], "gesture")) return ModeId::Gesture;
+        if (!strcasecmp(argv[i], "display"))  return ModeId::Display;
+        if (!strcasecmp(argv[i], "touch"))    return ModeId::Touch;
+        if (!strcasecmp(argv[i], "gesture"))  return ModeId::Gesture;
+        if (!strcasecmp(argv[i], "controls")) return ModeId::Controls;
+        if (!strcasecmp(argv[i], "hwinfo"))   return ModeId::HwInfo;
     }
     return ModeId::Menu;
 }

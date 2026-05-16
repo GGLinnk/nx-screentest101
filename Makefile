@@ -24,7 +24,7 @@ INCLUDES	:=	source
 
 APP_TITLE	:=	Screen Tester 101
 APP_AUTHOR	:=	GGLinnk
-APP_VERSION	:=	1.2.0
+APP_VERSION	:=	1.3.0
 
 #---------------------------------------------------------------------------------
 # options for code generation
