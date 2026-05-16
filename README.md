@@ -11,8 +11,9 @@ faults, analog-stick drift, the motion sensor and HD rumble.
 
 ## Demo
 
-[`showcase.mp4`](showcase.mp4) is a full feature walk-through — every test
-mode in turn — rendered off-device by the host renderer (see `tools/host`).
+https://github.com/user-attachments/assets/e0a55cde-528d-4510-914c-47ad8ada1162
+> A full feature walk-through — every test mode in turn — rendered off-device
+> by the host renderer (see `tools/host`).
 
 ## Features
 
